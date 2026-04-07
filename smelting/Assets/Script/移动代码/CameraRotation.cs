@@ -3,7 +3,7 @@
 public class CameraRotation : MonoBehaviour
 {
     [Header("Rotation Settings")]
-    public VirtualJoystick rotationJoystick; // 右摇杆引用
+    //public VirtualJoystick rotationJoystick; // 右摇杆引用
     public float rotationSpeed = 100f;      // 旋转速度
     public float pitchMin = -80f;           // 相机上下旋转的最小角度
     public float pitchMax = 80f;            // 相机上下旋转的最大角度
@@ -14,15 +14,17 @@ public class CameraRotation : MonoBehaviour
     {
         // 获取相机的Transform组件
         cameraTransform = Camera.main.transform;
+        //获取右摇杆引用
+        //rotationJoystick= GameObject.Find("Canvas/joystick/Fixed Joystick (1)").GetComponent<VirtualJoystick>();
     }
 
     void Update()
     {
         // 如果右摇杆有输入，则旋转相机
-        if (rotationJoystick != null && rotationJoystick.Input != Vector2.zero)
-        {
-            RotateCamera(rotationJoystick.Input);
-        }
+        //if (rotationJoystick != null && rotationJoystick.Input != Vector2.zero)
+        //{
+        //    RotateCamera(rotationJoystick.Input);
+        //}
     }
 
     // 旋转相机

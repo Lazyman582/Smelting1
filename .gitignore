@@ -2,6 +2,13 @@
 #
 # Get latest from https://github.com/github/gitignore/blob/main/Unity.gitignore
 #
+# 🔥 已添加：忽略Unity光照大文件（解决GitHub上传报错）
+**/LightingData.asset
+**/LightingData.asset.meta
+**/LightmapData.asset
+**/LightingSettings.asset
+**/GI/
+
 .utmp/
 [Ll]ibrary/
 [Tt]emp/

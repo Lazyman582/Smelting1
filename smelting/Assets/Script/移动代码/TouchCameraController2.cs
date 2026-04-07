@@ -55,6 +55,8 @@ public class TouchCameraController2 : MonoBehaviour
     {
         // 获取EventSystem
         eventSystem = EventSystem.current;
+        //获取Fixed Joystick
+        joystick= GameObject.Find("Canvas/joystick/Fixed Joystick").GetComponent<VirtualJoystick>();
 
         // 初始化
         if (cameraMode == CameraMode.Orbit && orbitTarget == null)

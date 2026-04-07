@@ -1,17 +1,19 @@
-﻿using UnityEngine;
+﻿using Unity.VisualScripting;
+using UnityEngine;
 
 public class CameraMovement : MonoBehaviour
 {
     [Header("Movement Settings")]
     public VirtualJoystick movementJoystick; // 左摇杆引用
     public float moveSpeed = 5f;             // 移动速度
-
     private Transform cameraTransform; // 相机的Transform组件
 
     void Start()
     {
         // 获取相机的Transform组件
         cameraTransform = Camera.main.transform;
+        //获取左摇杆
+        movementJoystick = GameObject.Find("Canvas/joystick/Fixed Joystick").GetComponent<VirtualJoystick>();
     }
 
     void Update()
