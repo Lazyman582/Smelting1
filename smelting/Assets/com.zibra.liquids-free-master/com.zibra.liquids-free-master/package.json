@@ -1,0 +1,32 @@
+{
+  "name": "com.zibra.liquids-free",
+  "displayName": "Zibra Liquids, Free",
+  "version": "1.4.5",
+  "unity": "2019.4",
+  "keywords": [
+    "liquid",
+    "fluid",
+    "simulation",
+    "water",
+    "particles",
+    "physics",
+    "collider",
+    "VFX"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "ZibraAI",
+    "email": "hello@zibra.ai",
+    "url": "https://zibra.ai/"
+  },
+  "homepage": "https://zibra.ai/",
+  "bugs": {
+    "url": "https://github.com/ZibraAI/com.zibra.liquids-free/issues",
+    "email": "support@zibra.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@github.com:ZibraAI/com.zibra.liquids-free.git"
+  },
+  "description": "Real-time liquid simulation plugin (GPU), powered by AI. New game mechanics & gameplay, graphics refining, game performance improvement. Ease of use."
+}
