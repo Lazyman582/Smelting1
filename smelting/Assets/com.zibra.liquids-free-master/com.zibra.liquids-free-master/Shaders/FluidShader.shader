@@ -9,228 +9,228 @@
             ZTest Always
 
             HLSLPROGRAM
-            // Physically based Standard lighting model
-            #pragma multi_compile_local __ HDRP
-            #pragma multi_compile_local __ CUSTOM_REFLECTION_PROBE
-            #pragma multi_compile_local __ VISUALIZE_SDF
-            #pragma multi_compile_local __ FLIP_BACKGROUND
-            #pragma instancing_options procedural:setup
-            #pragma vertex VSMain
-            #pragma fragment PSMain
-            #pragma target 3.0
+        // Physically based Standard lighting model
+        #pragma multi_compile_local __ HDRP
+        #pragma multi_compile_local __ CUSTOM_REFLECTION_PROBE
+        #pragma multi_compile_local __ VISUALIZE_SDF
+        #pragma multi_compile_local __ FLIP_BACKGROUND
+        #pragma instancing_options procedural:setup
+        #pragma vertex VSMain
+        #pragma fragment PSMain
+        #pragma target 3.0
 
-            #include "UnityCG.cginc"
-            #include "UnityStandardBRDF.cginc"
-            #include "UnityImageBasedLighting.cginc"
+        #include "UnityCG.cginc"
+        #include "UnityStandardBRDF.cginc"
+        #include "UnityImageBasedLighting.cginc"
 
-            struct VSIn
+        struct VSIn
+        {
+            uint vertexID : SV_VertexID;
+        };
+
+        struct VSOut
+        {
+            float4 position : POSITION;
+            float3 raydir : TEXCOORD1;
+            float2 uv : TEXCOORD0;
+        };
+
+        struct PSOut
+        {
+            float4 color : COLOR;
+        };
+
+        // Fluid material parameters, see SetMaterialParams()
+        float4x4 ProjectionInverse;
+        float4x4 EyeRayCameraCoeficients;
+        float ParticleDiameter;
+        float Roughness;
+        float AbsorptionAmount;
+        float RefractionDistortion;
+        float4 RefractionColor;
+        float4 ReflectionColor;
+        float4 EmissiveColor;
+        float Metalness;
+        float FoamIntensity;
+        float FoamAmount;
+        float3 GridSize;
+        float3 ContainerScale;
+        float3 ContainerPosition;
+
+        // Light and reflection params
+        UNITY_DECLARE_TEXCUBE(ReflectionProbe);
+        float4 ReflectionProbe_BoxMax;
+        float4 ReflectionProbe_BoxMin;
+        float4 ReflectionProbe_ProbePosition;
+        float4 ReflectionProbe_HDR;
+        float4 WorldSpaceLightPos;
+
+        // Camera params
+        float2 TextureScale;
+
+        // Input resources
+        sampler2D Background;
+        float4 Background_TexelSize;
+        sampler2D FluidColor;
+
+        float3 WorldToUVW(float3 p)
+        {
+            return (p - (ContainerPosition - ContainerScale * 0.5)) / ContainerScale + 0.5 / GridSize;
+        }
+
+        Texture3D<float4> GridNormals;
+        SamplerState samplerGridNormals;
+
+        float4 SampleGrid(float3 pos)
+        {
+            return GridNormals.SampleLevel(samplerGridNormals, WorldToUVW(pos), 0);
+        }
+
+        #if VISUALIZE_SDF
+            sampler2D SDFRender;
+        #endif
+
+        float3 GetNodeF(float3 p)
+        {
+            return GridSize * (p - (ContainerPosition - ContainerScale * 0.5)) / ContainerScale;
+        }
+
+        int GetNodeID(int3 node)
+        {
+            node = clamp(node, int3(0, 0, 0), int3(GridSize)-int3(1, 1, 1));
+            return node.x + node.y * GridSize.x +
+                   node.z * GridSize.x * GridSize.y;
+        }
+
+        int GetNodeID(float3 node)
+        {
+            return GetNodeID(int3(node));
+        }
+
+        float3 BoxProjection(float3 rayOrigin, float3 rayDir, float3 cubemapPosition, float3 boxMin, float3 boxMax)
+        {
+            float3 tMin = (boxMin - rayOrigin) / rayDir;
+            float3 tMax = (boxMax - rayOrigin) / rayDir;
+            float3 t1 = min(tMin, tMax);
+            float3 t2 = max(tMin, tMax);
+            float tFar = min(min(t2.x, t2.y), t2.z);
+            return normalize(rayOrigin + rayDir * tFar - cubemapPosition);
+        };
+
+        float3 DepthToWorld(float2 uv, float depth)
+        {
+            float2 pos = uv - 0.5;
+            float3 direction = mul(ProjectionInverse, float4(pos, 1.0f, 1.0f)).xyz;
+            float4 worldDirection = mul(transpose(UNITY_MATRIX_V), float4(direction, 0.0f));
+            depth = LinearEyeDepth(depth);
+            return worldDirection * depth;
+        }
+        // built-in Unity sampler name - do not change
+        sampler2D _CameraDepthTexture;
+
+        float2 GetFlippedUV(float2 uv)
+        {
+            if (_ProjectionParams.x > 0)
+                return float2(uv.x, 1 - uv.y);
+            return uv;
+        }
+
+        float2 GetFlippedUVBackground(float2 uv)
+        {
+            uv = GetFlippedUV(uv);
+        #ifdef FLIP_BACKGROUND
+            // Temporary fix for flipped reflection on iOS
+            uv.y = 1 - uv.y;
+        #else
+            if (Background_TexelSize.y < 0)
             {
-                uint vertexID : SV_VertexID;
-            };
-
-            struct VSOut
-            {
-                float4 position : POSITION;
-                float3 raydir : TEXCOORD1;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct PSOut
-            {
-                float4 color : COLOR;
-            };
-
-            // Fluid material parameters, see SetMaterialParams()
-            float4x4 ProjectionInverse;
-            float4x4 EyeRayCameraCoeficients;
-            float ParticleDiameter;
-            float Roughness;
-            float AbsorptionAmount;
-            float RefractionDistortion;
-            float4 RefractionColor;
-            float4 ReflectionColor;
-            float4 EmissiveColor;
-            float Metalness;
-            float FoamIntensity;
-            float FoamAmount;
-            float3 GridSize;
-            float3 ContainerScale;
-            float3 ContainerPosition;
-
-            // Light and reflection params
-            UNITY_DECLARE_TEXCUBE(ReflectionProbe);
-            float4 ReflectionProbe_BoxMax;
-            float4 ReflectionProbe_BoxMin;
-            float4 ReflectionProbe_ProbePosition;
-            float4 ReflectionProbe_HDR;
-            float4 WorldSpaceLightPos;
-            
-            // Camera params
-            float2 TextureScale;
-
-            // Input resources
-            sampler2D Background;
-            float4 Background_TexelSize;
-            sampler2D FluidColor;
-
-            float3 WorldToUVW(float3 p)
-            {
-                return (p - (ContainerPosition - ContainerScale * 0.5)) / ContainerScale + 0.5/GridSize;
-            }
-
-            Texture3D<float4> GridNormals;
-            SamplerState samplerGridNormals;
-
-            float4 SampleGrid(float3 pos)
-            {
-                return GridNormals.SampleLevel(samplerGridNormals, WorldToUVW(pos), 0);
-            }
-
-            #if VISUALIZE_SDF
-                sampler2D SDFRender;
-            #endif
-
-            float3 GetNodeF(float3 p)
-            {
-                return GridSize * (p - (ContainerPosition - ContainerScale * 0.5)) / ContainerScale;
-            }
-
-            int GetNodeID(int3 node)
-            {
-                node = clamp(node, int3(0, 0, 0), int3(GridSize) - int3(1, 1, 1));
-                return node.x + node.y * GridSize.x +
-                       node.z * GridSize.x * GridSize.y;
-            }
-
-            int GetNodeID(float3 node)
-            {
-                return GetNodeID(int3(node));
-            }
-
-            float3 BoxProjection(float3 rayOrigin, float3 rayDir, float3 cubemapPosition, float3 boxMin, float3 boxMax)
-            {
-                float3 tMin = (boxMin - rayOrigin) / rayDir;
-                float3 tMax = (boxMax - rayOrigin) / rayDir;
-                float3 t1 = min(tMin, tMax);
-                float3 t2 = max(tMin, tMax);
-                float tFar = min(min(t2.x, t2.y), t2.z);
-                return normalize(rayOrigin + rayDir*tFar - cubemapPosition);
-            };
-
-            float3 DepthToWorld(float2 uv, float depth)
-            {
-                float2 pos = uv - 0.5;
-                float3 direction = mul(ProjectionInverse, float4(pos, 1.0f, 1.0f)).xyz;
-                float4 worldDirection = mul(transpose(UNITY_MATRIX_V), float4(direction, 0.0f));
-                depth = LinearEyeDepth(depth);
-                return worldDirection * depth;
-            }
-            // built-in Unity sampler name - do not change
-            sampler2D _CameraDepthTexture;
-
-            float2 GetFlippedUV(float2 uv)
-            {
-                if (_ProjectionParams.x > 0)
-                    return float2(uv.x, 1 - uv.y);
-                return uv;
-            }
-
-            float2 GetFlippedUVBackground(float2 uv)
-            {
-                uv = GetFlippedUV(uv);
-            #ifdef FLIP_BACKGROUND
-                // Temporary fix for flipped reflection on iOS
                 uv.y = 1 - uv.y;
-            #else
-                if (Background_TexelSize.y < 0)
-                {
-                    uv.y = 1 - uv.y;
-                }
-            #endif
-                return uv;
             }
+        #endif
+            return uv;
+        }
 
-            float4 GetDepthAndPos(float2 uv)
+        float4 GetDepthAndPos(float2 uv)
+        {
+            float depth = tex2D(_CameraDepthTexture, uv).x;
+            float3 pos = DepthToWorld(uv, depth);
+            return float4(pos, depth);
+        }
+
+        // See Raytracing Gems 1 chapter 20.3.2.1
+        float3 GetCameraRay(float2 uv)
+        {
+            float2 c = float2(2.0f * uv.x - 1.0f, -2.0f * uv.y + 1.0f);
+
+            float3 r = EyeRayCameraCoeficients[0].xyz;
+            float3 u = EyeRayCameraCoeficients[1].xyz;
+            float3 v = EyeRayCameraCoeficients[2].xyz;
+
+            float3 direction = c.x * r + c.y * u + v;
+            return normalize(direction);
+        }
+
+        VSOut VSMain(VSIn input)
+        {
+            VSOut output;
+
+            float2 vertexBuffer[4] = {
+                float2(0.0f, 0.0f),
+                float2(0.0f, 1.0f),
+                float2(1.0f, 0.0f),
+                float2(1.0f, 1.0f),
+            };
+            uint indexBuffer[6] = { 0, 1, 2, 2, 1, 3 };
+            uint indexID = indexBuffer[input.vertexID];
+
+            float2 uv = vertexBuffer[indexID];
+            float2 flippedUV = GetFlippedUV(uv);
+
+            output.position = float4(2 * flippedUV.x - 1, 1 - 2 * flippedUV.y, 0.5, 1.0);
+            output.uv = uv;
+            output.raydir = GetCameraRay(uv);
+
+            return output;
+        }
+
+        float3 GetFluidSurfacePosition(float2 uv)
+        {
+            float4 pos = tex2D(FluidColor, uv * TextureScale);
+            float3 cameraPos = _WorldSpaceCameraPos;
+            float3 cameraRay = GetCameraRay(uv);
+            float depth = pos.w;
+            if (depth < 0.0 || depth > 1e4)
             {
-                float depth = tex2D(_CameraDepthTexture, uv).x;
-                float3 pos = DepthToWorld(uv, depth);
-                return float4(pos, depth);
+                return cameraPos + 1e-4 * cameraRay;
             }
+            return cameraPos + cameraRay * depth;
 
-            // See Raytracing Gems 1 chapter 20.3.2.1
-            float3 GetCameraRay(float2 uv)
-            {
-                float2 c = float2(2.0f * uv.x - 1.0f, -2.0f * uv.y + 1.0f);
+        }
 
-                float3 r = EyeRayCameraCoeficients[0].xyz;
-                float3 u = EyeRayCameraCoeficients[1].xyz;
-                float3 v = EyeRayCameraCoeficients[2].xyz;
+        float PositionToDepth(float3 pos)
+        {
+            float4 clipPos = mul(UNITY_MATRIX_VP, float4(pos, 1));
+            return (1.0 / clipPos.w - _ZBufferParams.w) / _ZBufferParams.z; //inverse of linearEyeDepth
+        }
 
-                float3 direction = c.x * r + c.y * u + v;
-                return normalize(direction);
-            }
+        float4 RenderFluidSurface(float3 cameraPos, float3 cameraRay, float2 uv)
+        {
+            float4 pos = tex2D(FluidColor, uv * TextureScale);
+            float depth = pos.w;
+            float3 newPos = cameraPos + cameraRay * depth;
 
-            VSOut VSMain(VSIn input)
-            {
-                VSOut output;
+            if (depth < 0.0 || depth >= 1e4) return 0.0;
 
-                float2 vertexBuffer[4] = {
-                    float2(0.0f, 0.0f),
-                    float2(0.0f, 1.0f),
-                    float2(1.0f, 0.0f),
-                    float2(1.0f, 1.0f),
-                };
-                uint indexBuffer[6] = { 0, 1, 2, 2, 1, 3 };
-                uint indexID = indexBuffer[input.vertexID];
+            float4 data = SampleGrid(newPos.xyz);
+            float3 normal = normalize(data.xyz);
+            float density = data.w;
+            //which normal to use? make it density dependent
+            float nu = smoothstep(0.0, FoamAmount, density);
+            normal = normalize(lerp(normal, normalize(pos.xyz), 1.0 - nu));
+            float rdotn = dot(normal, cameraRay);
 
-                float2 uv = vertexBuffer[indexID];
-                float2 flippedUV = GetFlippedUV(uv);
-
-                output.position = float4(2 * flippedUV.x - 1, 1 - 2 * flippedUV.y, 0.5, 1.0);
-                output.uv = uv;
-                output.raydir = GetCameraRay(uv);
-
-                return output;
-            }
-
-            float3 GetFluidSurfacePosition(float2 uv)
-            {
-                float4 pos = tex2D(FluidColor, uv * TextureScale);
-                float3 cameraPos = _WorldSpaceCameraPos;
-                float3 cameraRay = GetCameraRay(uv);
-                float depth = pos.w;
-                if (depth < 0.0 || depth > 1e4)
-                {
-                    return cameraPos + 1e-4 * cameraRay;
-                }
-                return cameraPos + cameraRay * depth;
-               
-            }
-
-            float PositionToDepth(float3 pos)
-            {
-                float4 clipPos = mul(UNITY_MATRIX_VP, float4(pos, 1));
-                return (1.0 / clipPos.w - _ZBufferParams.w) / _ZBufferParams.z; //inverse of linearEyeDepth
-            }
-
-            float4 RenderFluidSurface(float3 cameraPos, float3 cameraRay, float2 uv)
-            {
-                float4 pos = tex2D(FluidColor, uv * TextureScale);
-                float depth = pos.w;
-                float3 newPos = cameraPos + cameraRay * depth;
-
-                if (depth < 0.0 || depth >= 1e4) return 0.0;
-                
-                float4 data = SampleGrid(newPos.xyz);
-                float3 normal = normalize(data.xyz);
-                float density = data.w;
-                //which normal to use? make it density dependent
-                float nu = smoothstep(0.0, FoamAmount, density);
-                normal = normalize(lerp(normal, normalize(pos.xyz), 1.0 - nu));
-                float rdotn = dot(normal, cameraRay);
-
-                // lighting vectors:
-                float3 worldView = -cameraRay;
+            // lighting vectors:
+            float3 worldView = -cameraRay;
 
 #ifdef HDRP
                 float3 lightDirWorld = normalize(WorldSpaceLightPos.xyz);
@@ -314,73 +314,73 @@
             {
                 float4 sdfout = tex2D(SDFRender, uv);
                 float3 sdfPos = cameraPos + cameraRay * sdfout.w;
-                float sdfDepth =  PositionToDepth(sdfPos);
+                float sdfDepth = PositionToDepth(sdfPos);
 
-                if(sdfout.w < 1e2)
+                if (sdfout.w < 1e2)
                 {
-                       // lighting vectors:
-                    float3 worldView = -cameraRay;
-            #ifdef HDRP
-                    float3 lightDirWorld = normalize(WorldSpaceLightPos.xyz);
-            #else
-                    float3 lightDirWorld = normalize(_WorldSpaceLightPos0.xyz);
-            #endif
+                    // lighting vectors:
+                 float3 worldView = -cameraRay;
+         #ifdef HDRP
+                 float3 lightDirWorld = normalize(WorldSpaceLightPos.xyz);
+         #else
+                 float3 lightDirWorld = normalize(_WorldSpaceLightPos0.xyz);
+         #endif
 
-                    float3 normal = sdfout.xyz;
-                    half3 h = normalize(lightDirWorld + worldView);
-                    float nh = BlinnTerm(normal, h);
-                    float nl = DotClamped(normal, lightDirWorld);
-                    float nv = dot(normal, worldView); 
-                    float rough = 0.55;
-                    half V = SmithBeckmannVisibilityTerm(nl, nv, rough);
-                    half D = NDFBlinnPhongNormalizedTerm(nh, RoughnessToSpecPower(rough));
-                    float spec = (V * D) * (UNITY_PI / 4);
-                    spec = max(0, spec * nl);
+                 float3 normal = sdfout.xyz;
+                 half3 h = normalize(lightDirWorld + worldView);
+                 float nh = BlinnTerm(normal, h);
+                 float nl = DotClamped(normal, lightDirWorld);
+                 float nv = dot(normal, worldView);
+                 float rough = 0.55;
+                 half V = SmithBeckmannVisibilityTerm(nl, nv, rough);
+                 half D = NDFBlinnPhongNormalizedTerm(nh, RoughnessToSpecPower(rough));
+                 float spec = (V * D) * (UNITY_PI / 4);
+                 spec = max(0, spec * nl);
 
-                    return float4(spec + (normal*0.5 + 0.5)*(dot(lightDirWorld, normal)*0.5 + 0.5), sdfDepth);
-                }
+                 return float4(spec + (normal * 0.5 + 0.5) * (dot(lightDirWorld, normal) * 0.5 + 0.5), sdfDepth);
+             }
 
-                return 0.0;
-            }
-        #endif
-          
-            float4 MinIntersection(float4 a, float4 b)
-            {
-                return (a.w > b.w) ? a : b;
-            }
+             return 0.0;
+         }
+     #endif
 
-            PSOut PSMain(VSOut input)
-            {
-                PSOut output;
+         float4 MinIntersection(float4 a, float4 b)
+         {
+             return (a.w > b.w) ? a : b;
+         }
 
-                float sceneDepth = tex2D(_CameraDepthTexture, input.uv).x;
+         PSOut PSMain(VSOut input)
+         {
+             PSOut output;
 
-                float3 cameraPos = _WorldSpaceCameraPos;
-                float3 cameraRay = normalize(input.raydir);
-                
-                float4 intersection = 0.0;
-               
-                intersection = MinIntersection(intersection, RenderFluidSurface(cameraPos, cameraRay, input.uv));
-            
-            #if VISUALIZE_SDF
-                intersection = MinIntersection(intersection, RenderSDFSurface(cameraPos, cameraRay, input.uv));
-            #endif
+             float sceneDepth = tex2D(_CameraDepthTexture, input.uv).x;
 
-                if (intersection.w == 0.0)
-                {
-                    //didn't hit anything
-                    discard;
-                }
+             float3 cameraPos = _WorldSpaceCameraPos;
+             float3 cameraRay = normalize(input.raydir);
 
-                if (intersection.w < sceneDepth)
-                {
-                    discard;
-                }
+             float4 intersection = 0.0;
 
-                output.color = float4(intersection.xyz, 1.0);
-                return output;
-            }
-            ENDHLSL
-        }
+             intersection = MinIntersection(intersection, RenderFluidSurface(cameraPos, cameraRay, input.uv));
+
+         #if VISUALIZE_SDF
+             intersection = MinIntersection(intersection, RenderSDFSurface(cameraPos, cameraRay, input.uv));
+         #endif
+
+             if (intersection.w == 0.0)
+             {
+                 //didn't hit anything
+                 discard;
+             }
+
+             if (intersection.w < sceneDepth)
+             {
+                 discard;
+             }
+
+             output.color = float4(intersection.xyz, 1.0);
+             return output;
+         }
+         ENDHLSL
+     }
     }
 }
