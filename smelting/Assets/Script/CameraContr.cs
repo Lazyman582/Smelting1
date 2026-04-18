@@ -14,6 +14,7 @@ public class CameraContr : MonoBehaviour
     void Start()
     {
         playDirector = FindObjectOfType<PlayableDirector>();
+        playDirector.stopped += OnTimelineStoped;
     }
 
     // Update is called once per frame
@@ -29,7 +30,11 @@ public class CameraContr : MonoBehaviour
 
         }
     }
-
+    void OnTimelineStoped(PlayableDirector director)
+    {
+        Debug.Log("4444");
+        
+    }
     void HandleTouchClick(Touch touch)
     {
 
@@ -44,6 +49,8 @@ public class CameraContr : MonoBehaviour
             }
         }
     }
+
+   
 
     void OnHitTarget(GameObject obj)
     {
@@ -61,7 +68,9 @@ public class CameraContr : MonoBehaviour
             case "stone":
                 Destroy(obj);
                 playDirector.Play();
+                
                 break;
+
             default:
                 
                 break;
