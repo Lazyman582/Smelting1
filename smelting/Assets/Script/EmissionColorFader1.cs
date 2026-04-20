@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-public class EmissionColorFader : MonoBehaviour
+public class EmissionColorFader1 : MonoBehaviour
 {
     // 颜色区间
     public Color startColor = Color.black; // 起始颜色（通常设为黑色或暗色）

@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.Video;
-
+using UnityEngine.SceneManagement;
 public class TouchMultiTarget : MonoBehaviour
 {
     public Camera cam;
@@ -79,7 +79,7 @@ public class TouchMultiTarget : MonoBehaviour
     {
         switch (obj.name)
         {
-            case "tieli":
+            case "tieli": //ÌúÀçÐý×ª
                 uiimage[0].SetActive(true);
                 cam.GetComponent<TouchCameraController2>().enabled = false;
                 joystick.SetActive(false);
@@ -94,6 +94,19 @@ public class TouchMultiTarget : MonoBehaviour
                 {
                     v1.Play();
                 }
+                break;
+            case "qingtongqi": //ÇàÍ­Æ÷Ðý×ª
+                uiimage[0].SetActive(true);
+                cam.GetComponent<TouchCameraController2>().enabled = false;
+                joystick.SetActive(false);
+                break;
+            case "Ò±Á¶":
+
+
+                
+                break;
+            case "door_box":
+                SceneManager.LoadScene(2);
                 break;
             default:
                 break;
