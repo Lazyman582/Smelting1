@@ -1,6 +1,5 @@
 using UnityEngine;
 using UnityEngine.Video;
-using UnityEngine.SceneManagement;
 public class TouchMultiTarget : MonoBehaviour
 {
     public Camera cam;
@@ -106,7 +105,8 @@ public class TouchMultiTarget : MonoBehaviour
                 
                 break;
             case "door_box":
-                SceneManager.LoadScene(2);
+                joystick.SetActive(false);
+                uiimage[1].SetActive(true);
                 break;
             default:
                 break;

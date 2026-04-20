@@ -33,7 +33,7 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _BurnAmount: 0.51
+    - _BurnAmount: 0.78
     - _BurnEdgeWidth: 0.1
     - _FireIntensity: 3.8
     - _FlowSpeed: 0.03
