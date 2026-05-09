@@ -1,12 +1,14 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.Video;
+using UnityEngine.Playables;
 public class TouchMultiTarget : MonoBehaviour
 {
     public Camera cam;
 
     [Header("可点击的目标物体")]
     public GameObject[] targetObjects;
+    public GameObject maintrform;
 
     [Header("点击后显示的UI")]
     public GameObject[] uiimage;
@@ -22,6 +24,8 @@ public class TouchMultiTarget : MonoBehaviour
     [Header("预制体父物体")]
     public GameObject fatherobj;
     public TMP_Text text1;
+    [Header("Timeline1")]
+    public PlayableDirector time1;
     // 记录触摸起始位置
     private Vector2 touchStartPos;
     //视频
@@ -30,6 +34,8 @@ public class TouchMultiTarget : MonoBehaviour
     {
         if (cam == null)
             cam = Camera.main;
+        time1.stopped += OnTimelineStopped;
+
     }
 
     void Update()
@@ -107,6 +113,14 @@ public class TouchMultiTarget : MonoBehaviour
             Destroy(item.gameObject);
         }
     }
+    /// <summary>
+    /// Timeline结束调用
+    /// </summary>
+    void OnTimelineStopped(PlayableDirector pd)
+    {
+
+        Debug.Log("Timeline 停止了");
+    }
     void OnHitTarget(GameObject obj)
     {
         switch (obj.name)
@@ -153,6 +167,20 @@ public class TouchMultiTarget : MonoBehaviour
 
 
 
+                break;
+            case "触发time1":
+                cam.transform.position = new Vector3(28.3066311f, 6.13935375f, -19.8786583f);
+                cam.transform.rotation = Quaternion.Euler(1.92599773f, 179.074982f, 0.00300407363f);
+                Animator an1 = cam.GetComponent<Animator>();
+                an1.enabled = true;
+                time1.Stop();
+                time1.time = 0;
+                time1.Play();
+                if (time1.time==46)
+                {
+                    time1.enabled = false;
+                    an1.enabled = false;
+                }
                 break;
             case "door_box":
                 joystick.SetActive(false);
