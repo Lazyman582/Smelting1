@@ -34,6 +34,9 @@ public class CameraContr : MonoBehaviour
     public GameObject cutie;
     public GameObject[] tie;
     public GameObject tie_Box;
+    public int Count;
+
+
 
     public int tie_control;
     // Start is called before the first frame update
@@ -94,6 +97,7 @@ public class CameraContr : MonoBehaviour
             {
                 Debug.Log("有效点击：" + hit.collider.name);
                 OnHitTarget(hit.collider.gameObject);
+                Count++;
             }
         }
         Debug.DrawRay(ray.origin, ray.direction * 100f, Color.red, 2f);
@@ -213,8 +217,8 @@ public class CameraContr : MonoBehaviour
                 break;
             case "高炉子":
 
-                //Luzi.GetComponent<EmissionColorFader>().enabled =false;
-                //Luzi1.GetComponent<EmissionColorFader>().enabled = false;
+                Luzi.GetComponent<EmissionColorFader>().enabled =false;
+                Luzi1.GetComponent<EmissionColorFader>().enabled = false;
 
                 Luzi1.transform.DOMoveZ(-10f, 2f).OnComplete(() =>
                 {
